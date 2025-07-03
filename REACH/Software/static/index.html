@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>REACH Robot Arm Control</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&family=Roboto&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="reach-control.css">    
+</head>
+<body>
+  <div class="header" id="header">
+    <div class="header-subtitle">Brought to you by Takahashi Group and Hokkaido University</div>
+    <div class="title-block">
+      <div>
+        <h1 title="Robotic Extension Arm for Collaborative Handling">REACH</h1>
+        <h2>Custom-made Robotic Arm from MNK</h2>
+      </div>
+      <img class="logo" src="logo.png" alt="REACH Logo">
+    </div>
+  </div>
+
+  <div class="panel" id="preset-panel">
+    <div class="panel-header">
+      <span class="toggle-btn">&#9650;</span>
+      <span class="panel-title">Preset Positions</span>
+    </div>
+    <div class="preset-container">
+      <!-- Preset Button Grid -->
+      <div class="preset-grid">
+        <button class="preset-btn" onclick="sendPreset('SLP')" title="Sleep Position">SLP</button>
+        <button class="preset-btn" onclick="sendPreset('CTR')" title="Center Arm">CTR</button>
+        <button class="preset-btn" onclick="sendPreset('PLT')" title="Prepare Left-side Pickup">PLT</button>
+        <button class="preset-btn" onclick="sendPreset('PRT')" title="Prepare Right-side Pickup">PRT</button>
+        <button class="preset-btn" onclick="sendPreset('PCL')" title="Prepare Gripping">PCL</button>
+        <button class="preset-btn" onclick="sendPreset('GRP')" title="Grip Object">GRP</button>
+        <button class="preset-btn" onclick="sendPreset('REL')" title="Release Object">REL</button>
+        <button class="preset-btn" onclick="sendPreset('LFT')" title="Lift Object">LFT</button>
+      </div>
+
+      <div class="webcam-box">
+        <div style="text-align:center; font-weight:bold; margin-bottom:5px;">🔴 Live View from Robot Cam</div>
+        <img id="robotCam" src="/video_feed" alt="Live Robot View" />
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="manual-command-panel">
+    <div class="panel-header">
+      <span class="toggle-btn">&#9650;</span><span class="panel-title">Manual Commands</span>
+    </div>
+    <input type="text" id="commandInput" placeholder="Enter command" />
+    <button onclick="sendCommand()">Send</button>
+    <div id="servo-slider-grid" class="servo-slider-grid"></div>
+    <div id="command-preview" style="margin-top: 0.5em; font-size: 0.9em; color: #555;"></div>    
+  </div>
+
+  <div class="panel" id="macro-manager-panel">
+    <div class="panel-header">
+      <span class="toggle-btn">&#9650;</span><span class="panel-title">Macro Management</span>
+    </div>
+    <div class="macro-controls">
+      <div class="macro-row">
+        <button onclick="macroAddCurrentState()">➕ Save Current State</button>
+        <button onclick="macroAddWait()">⏱️ Add WAIT</button>
+        <input type="number" id="waitDuration" min="1" max="99" value="1" title="Seconds" />
+        <button onclick="macroAddBMD()">🕹 Add BMD</button>
+        <input type="number" id="bmdDuration" min="0" max="5000" step="100" value="300" title="Milliseconds" />
+      </div>
+
+      <div class="macro-row">
+        <button onclick="macroClear()">🗑 Clear</button>
+        <button onclick="macroSaveToFile()">💾 Save</button>
+        <button onclick="macroLoadFromFile()">📂 Load</button>
+        <button onclick="macroPlay()">▶️ Play</button>
+        <button onclick="macroStop()">⛔ Stop</button>
+        <label class="switch">
+          <input type="checkbox" id="macroLoopToggle">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <textarea id="macroTextbox" rows="10" style="width: 100%; font-family: monospace;" placeholder="Macro steps will appear here..."></textarea>
+      <div id="macroStatus" style="margin-top: 0.5em; font-size: 0.9em;"></div>
+    </div>
+  </div>
+
+  <div class="panel" id="robot-messaging-panel">
+    <div class="panel-header">
+      <span class="toggle-btn">&#9650;</span><span class="panel-title">Robot Feedback</span>
+    </div>
+    <div id="robot-feedback" style="margin-top:10px; font-weight:bold;"></div>
+    <div id="angle-grid" class="angle-grid">
+      <div class="servo-box">Base(0): --°</div>
+      <div class="servo-box">Shoulder(1): --°</div>
+      <div class="servo-box">Elbow(2): --°</div>
+      <div class="servo-box">Wrist(3): --°</div>
+      <div class="servo-box">Twist(4): --°</div>
+      <div class="servo-box">Grip(5): --°</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <span class="toggle-btn">&#9650;</span><span class="panel-title">Pre-made Macros</span>
+    </div>    
+    <div class="preset-grid">
+      <button class="preset-btn" onclick="runMacro('DM1')" title="Pick Up & Pour Demo">DEMO 1</button>
+      <button class="preset-btn" onclick="runMacro('DM2')" title="Wave Demo">DEMO 2</button>
+      <button class="preset-btn" onclick="runMacro('DM3')" title="Wavy Snake Dance Demo">DEMO 3</button>
+      <button class="preset-btn" onclick="runMacro('SSLP')" title="SAFE SLEEP">SSLP</button>
+      <button class="preset-btn" onclick="runMacro('SCTR')" title="SAFE CENTER">SCTR</button>
+    </div>
+  </div>
+
+  <div class="panel collapsed" id="history-panel">
+    <div class="panel-header">
+      <span class="toggle-btn">&#9650;</span><span class="panel-title">Command History</span>
+    </div>
+    <button onclick="clearHistory()">🗑️ Clear</button>
+    <div class="history-container">
+      <div class="history-column">
+        <h4>Sent Commands</h4>
+        <ul id="sent-history" class="history-list"></ul>
+      </div>
+      <div class="history-column">
+        <h4>Robot Responses</h4>
+        <ul id="response-history" class="history-list"></ul>
+      </div>
+    </div>
+  </div>
+
+  <div id="disconnect-modal" class="modal hidden">
+    <div class="modal-content">
+      <h2>🔌 Robot Disconnected</h2>
+      <p>Please reconnect the robot. The interface is disabled until a connection is restored.</p>
+      <div class="spinner"></div>
+    </div>
+  </div>
+  
+  <script src="reach-control.js"></script>
+</body>
+</html>
