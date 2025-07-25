@@ -22,6 +22,10 @@ DEFAULT_PORT = "COM3"
 PASSWORD = "letmein"
 BAUD_RATE = 9600
 ENABLE_AUTO_RECONNECT = True
+CAMERA_INDEX = 2  # Try 0 if unsure
+USE_HTTPS = False  # Set to True if you want HTTPS
+SSL_CERT = "myrobot.local.pem"
+SSL_KEY = "myrobot.local-key.pem"
 
 # Global State
 ser = None
@@ -29,9 +33,7 @@ history = []
 serial_buffer = deque(maxlen=100)
 serial_lock = threading.Lock()
 listener_active = False
-camera = cv2.VideoCapture(2)  # Confirmed cam index
-ssl_cert = 'myrobot.local.pem'
-ssl_key = 'myrobot.local-key.pem'
+camera = cv2.VideoCapture(CAMERA_INDEX)  # Confirmed cam index
 
 # -----------------------------------------------------
 # Security Middleware
@@ -260,7 +262,7 @@ if __name__ == '__main__':
         threading.Thread(target=auto_reconnect_loop, daemon=True).start()
     threading.Thread(target=serial_listener, daemon=True).start()
     listener_active = True
-    # For HTTPS and SSL
-    app.run(host='0.0.0.0', port=443, ssl_context=(ssl_cert, ssl_key))
-    # For ordinary HTTP
-    # app.run(host='0.0.0.0', port=5000)  # no ssl_context
+    if USE_HTTPS:
+        app.run(host='0.0.0.0', port=443, ssl_context=(SSL_CERT, SSL_KEY))
+    else:
+        app.run(host='0.0.0.0', port=5000)  # Plain HTTP
