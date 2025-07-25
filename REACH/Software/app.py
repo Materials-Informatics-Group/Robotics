@@ -29,6 +29,9 @@ history = []
 serial_buffer = deque(maxlen=100)
 serial_lock = threading.Lock()
 listener_active = False
+camera = cv2.VideoCapture(2)  # Confirmed cam index
+ssl_cert = 'myrobot.local.pem'
+ssl_key = 'myrobot.local-key.pem'
 
 # -----------------------------------------------------
 # Security Middleware
@@ -257,6 +260,7 @@ if __name__ == '__main__':
         threading.Thread(target=auto_reconnect_loop, daemon=True).start()
     threading.Thread(target=serial_listener, daemon=True).start()
     listener_active = True
-    ssl_cert = '192.168.12.123.pem'
-    ssl_key = '192.168.12.123-key.pem'
+    # For HTTPS and SSL
     app.run(host='0.0.0.0', port=443, ssl_context=(ssl_cert, ssl_key))
+    # For ordinary HTTP
+    # app.run(host='0.0.0.0', port=5000)  # no ssl_context
