@@ -1,0 +1,43 @@
+{
+  "lang": "en-US",
+  "wakeWords": ["hey robot", "robo-reach", "wake up"],
+  "autoStart": false,
+  "features": { "move": true, "presets": true, "macros": true, "vision": true },
+
+  "servoLimits": { "default": 180, "5": 80 },
+
+  "presets": {
+    "sleep": "SLP",
+    "center": "CTR",
+    "prepare": "PLT",
+    "get ready": "PLT",
+    "open hand": "REL",
+    "close hand": "GRP",
+    "lift": "LFT"
+  },
+
+  "macros": {
+    "runCurrentPhrases": ["run macro", "play macro"],
+    "labels": {
+      "demo 1": "DM1",
+      "wave": "DM2",
+      "demo 2": "DM2",
+      "dance": "DM3",
+      "demo 3": "DM3",
+      "safe sleep": "SSLP",
+      "safe center": "SCTR",
+      "do the dance": "DM3"
+    }
+  },
+
+  "stop": { "phrases": ["stop now", "halt", "emergency stop"] },
+
+  "vision": {
+    "colors": ["red","green","blue","yellow","orange","purple","cyan","magenta"],
+    "tags": ["a","b","c","d","1","2","3","4"],
+    "phrases": {
+      "findColor": ["find {color}"],
+      "findTag":   ["find tag {tag}"]
+    }
+  }
+}

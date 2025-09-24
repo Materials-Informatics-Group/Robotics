@@ -1,0 +1,53 @@
+{
+  "H": [[1,0,0],[0,1,0],[0,0,1]],
+  "plane_size_mm": [500, 250],
+  "base_mm": { "x": 10, "y": 10 },
+
+  "servo_map": {
+    "base": {
+      "split": 90,
+      "offset": 0.0,
+      "scale_low": 1,
+      "scale_high": 1,
+      "offset_low": 0,
+      "offset_high": 0,
+      "radial_k": 0,
+      "radial_r0": 220,
+      "correction": [
+        { "yaw": 35,  "deg":  0 },
+        { "yaw": 50,  "deg":  0 },
+        { "yaw": 65,  "deg":  0 },
+        { "yaw": 80,  "deg": 0 },
+        { "yaw": 95,  "deg": 0 },
+        { "yaw": 103, "deg": 0 },
+        { "yaw": 110, "deg": 0 },
+        { "yaw": 125, "deg": 0 }
+      ]
+    },
+    "shoulder": { "scale": -1, "offset": 180 },
+    "wrist":    { "scale":  1, "offset":  90 }
+  },
+
+  "op_base_offset_deg": { "place": 0, "drop": 0, "pour": 5 },
+
+  "colobj_pick_pose":  { "s1": 170, "s3": 120 },
+  "colobj_place_pose": { "s1": 160, "s3": 130 },
+  "colobj_drop_pose":  { "s1": 160, "s3": 130 },  
+
+  "beaker_large_pick_pose":  { "s1": 170, "s3": 105 },
+  "beaker_large_place_pose": { "s1": 165, "s3": 100 },
+  "beaker_large_drop_pose":  { "s1": 165, "s3": 100 },
+
+  "beaker_small_pick_pose":  { "s1": 170, "s3": 115 },
+  "beaker_small_place_pose": { "s1": 165, "s3": 110 },
+  "beaker_small_drop_pose":  { "s1": 165, "s3": 110 },
+
+  "pour": {
+    "twist_deg": 180,
+    "rest_deg": 80,
+    "dwell_ms": 1400,
+    "settle_ms": 250
+  },
+
+  "camera_clear": { "base": 90, "s1": 80, "s2": 180, "s3": 90, "s4": 80, "s5": 80 }
+}

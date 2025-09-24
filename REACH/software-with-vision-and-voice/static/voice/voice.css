@@ -1,0 +1,291 @@
+/* =================================================================================================
+Project: REACH App — UI web application to control the REACH robot arm
+Institution: Hokkaido University (2025)
+Last Update: Q3 2025
+-------------------------------------------------------------------------------------------------
+Authors:
+  • Mikael Nicander Kuwahara — Lead System Designer & Lead Developer (2024–)
+-------------------------------------------------------------------------------------------------
+File: voice.css
+Purpose:
+  • Minimal, sturdy styles for Voice UI: toggle/status/hint, help button & instant hint bubble,
+    and the modal overlay for “Available Voice Commands”.
+Notes:
+  • Non-breaking: class/ID hooks are unchanged; no JS updates required.
+  • Adds better focus styles, small spacing polish, and reduced-motion respect.
+================================================================================================= */
+
+/* ========================================
+   Design tokens (scoped variables)
+   ======================================== */
+:root {
+  --voice-fg: #eaeaea;
+  --voice-bg: #1a1d22;
+  --voice-border: #444;
+
+  --voice-on-bg: #23321c;
+  --voice-on-border: #3b5b2e;
+
+  --voice-help-bg: #1e3a8a;
+  --voice-help-border: #27459e;
+  --voice-help-bg-hover: #2563eb;
+  --voice-help-outline: #60a5fa;
+  --voice-help-bg-active: #1f6feb;
+
+  --vh-overlay-bg: rgba(0, 0, 0, 0.55);
+  --vh-modal-bg: #111;
+  --vh-modal-fg: #eee;
+  --vh-modal-border: #333;
+  --vh-modal-head-bg: #151515;
+
+  --code-bg: #1a1a1a;
+
+  --gap-sm: .5rem;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --shadow-lg: 0 10px 30px rgba(0,0,0,.6);
+}
+
+/* ========================================
+   Voice panel: toggle, status, hint
+   ======================================== */
+.voice-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+  flex-wrap: wrap; /* avoid overflow on small widths */
+}
+
+#voiceToggle {
+  padding: .4rem .6rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--voice-border);
+  background: var(--voice-bg);
+  color: var(--voice-fg);
+  cursor: pointer;
+  line-height: 1.2;
+}
+#voiceToggle.on {
+  background: var(--voice-on-bg);
+  border-color: var(--voice-on-border);
+}
+
+#voiceToggle:focus-visible {
+  outline: 2px solid var(--voice-help-outline);
+  outline-offset: 2px;
+}
+
+#voiceStatus {
+  font-size: .9rem;
+  opacity: .8;
+}
+
+/* style the hint whether it uses the class or just the data-attr */
+.voice-hint,
+[data-wakeword-hint] {
+  font-size: .85rem;
+  opacity: .7;
+}
+
+
+/* ========================================
+   Voice help button + hint bubble
+   ======================================== */
+
+/* Container for button; replaces old tooltip wrapper */
+.voice-help-wrap {
+  position: relative;
+  display: inline-block;
+  margin-left: .25rem;
+}
+
+/* Hide any leftover legacy tooltip nodes */
+.voice-help-tip { display: none !important; }
+
+.voice-help-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-sm);
+  font-size: .8rem;
+  padding: 0;
+  line-height: 1;
+  border: 1px solid var(--voice-help-border);
+  background: var(--voice-help-bg);
+  color: #fff;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color .12s ease-out, box-shadow .12s ease-out;
+}
+
+.voice-help-btn:hover,
+.voice-help-btn:focus {
+  background: var(--voice-help-bg-hover);
+  outline: 2px solid var(--voice-help-outline);
+  outline-offset: 2px;
+}
+
+.voice-help-btn:active { background: var(--voice-help-bg-active); }
+
+/* Instant hint bubble (replaces native title) */
+.voice-help-btn[data-hint]::after {
+  content: attr(data-hint);
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: #fff;
+  color: #111;
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: .85rem;
+  box-shadow: 0 4px 16px rgba(0,0,0,.3);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .08s ease-out;
+  z-index: 10000;
+}
+
+.voice-help-btn:hover[data-hint]::after { opacity: 1; }
+
+/* Hide hint bubble while modal is open/suppressed */
+.voice-help-btn[data-suppress-hint="1"]::after { display: none !important; }
+body.vh-open .voice-help-btn[data-hint]::after { display: none !important; }
+
+/* ========================================
+   Voice Help Modal (overlay + dialog)
+   ======================================== */
+.vh-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--vh-overlay-bg);
+  display: none;                   /* toggled via .is-open */
+  z-index: 9998;
+}
+
+.vh-modal {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%); /* keeps scroll out of page flow */
+  width: min(960px, 92vw);
+  max-height: 80vh;
+  background: var(--vh-modal-bg);
+  color: var(--vh-modal-fg);
+  border: 1px solid var(--vh-modal-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 9999;
+
+  /* start closed (no transitions to avoid display->transition mismatch) */
+  display: none;
+
+  /* flex layout becomes active when open */
+  flex-direction: column;
+}
+
+.vh-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .75rem 1rem;
+  border-bottom: 1px solid var(--vh-modal-border);
+  background: var(--vh-modal-head-bg);
+}
+
+.vh-title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.vh-close {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #bbb;
+  font-size: 20px;
+  cursor: pointer;
+  padding: .25rem;
+  line-height: 1;
+  border-radius: var(--radius-sm);
+}
+.vh-close:hover { color: #fff; }
+.vh-close:focus-visible {
+  outline: 2px solid var(--voice-help-outline);
+  outline-offset: 2px;
+}
+
+.vh-body {
+  padding: 1rem;
+  overflow: auto;
+  flex: 1 1 auto;
+  min-height: 0; /* critical for scroll inside flex */
+  -webkit-overflow-scrolling: touch;
+}
+.vh-body h4 { margin: .75rem 0 .25rem; font-size: 1rem; }
+.vh-body small { color: #aaa; }
+.vh-body code {
+  background: var(--code-bg);
+  padding: .15rem .35rem;
+  border-radius: 4px;
+}
+.vh-body ul {
+  margin: .25rem 0 .75rem 1.1rem;
+  padding-left: 0;         /* rely on margin for indent */
+  list-style: disc;
+}
+
+/* Open/close via classes (JS toggles .is-open) */
+.vh-overlay.is-open { display: block; }
+.vh-modal.is-open   { display: flex; }
+
+/* Lock page scroll when modal open */
+body.vh-open { overflow: hidden; }
+
+/* ========================================
+   Reduced motion: tone down non-essential animation
+   ======================================== */
+@media (prefers-reduced-motion: reduce) {
+  .voice-help-btn,
+  .voice-help-btn[data-hint]::after {
+    transition: none;
+  }
+}
+
+
+/* Audio feedback footer row under voice controls */
+.voice-audio-row {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .6rem .25rem 0;
+  margin-top: .25rem;
+  border-top: 1px dashed rgba(0,0,0,.18);
+  flex-wrap: wrap;
+}
+
+.audio-toggle-title {
+  font-size: .9rem;
+  font-weight: 600;
+  color: #0f172a; /* slate-900 on light bg */
+}
+
+.audio-toggle-hint {
+  font-size: .8rem;
+  opacity: .75;
+}
+
+/* Make the switch look good in this lighter panel too */
+#voice-command-panel .switch .slider {
+  background-color: #cbd5e1; /* slate-300 */
+}
+#voice-command-panel .switch input:checked + .slider {
+  background-color: #2563eb; /* blue-600 */
+}
+#voice-command-panel .switch .slider:before {
+  box-shadow: 0 1px 2px rgba(0,0,0,.15);
+}

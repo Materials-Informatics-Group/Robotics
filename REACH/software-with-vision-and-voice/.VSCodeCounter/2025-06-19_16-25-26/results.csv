@@ -1,0 +1,20 @@
+"filename", "language", "Ini", "Python", "PostCSS", "TXT", "Django Template", "Batch", "JavaScript", "comment", "blank", "total"
+"c:\Users\micke\OneDrive\Reach_RobotArm_Software\REACH Macros\Drawing.txt", "TXT", 0, 0, 0, 14, 0, 0, 0, 0, 0, 14
+"c:\Users\micke\OneDrive\Reach_RobotArm_Software\REACH Macros\GripperTest.txt", "TXT", 0, 0, 0, 11, 0, 0, 0, 0, 0, 11
+"c:\Users\micke\OneDrive\Reach_RobotArm_Software\REACH Macros\MixingDemo.txt", "TXT", 0, 0, 0, 46, 0, 0, 0, 0, 0, 46
+"c:\Users\micke\OneDrive\Reach_RobotArm_Software\REACH Macros\MixingDemo2.txt", "TXT", 0, 0, 0, 46, 0, 0, 0, 0, 0, 46
+"c:\Users\micke\OneDrive\Reach_RobotArm_Software\REACH Macros\MixingDemo3.txt", "TXT", 0, 0, 0, 49, 0, 0, 0, 0, 0, 49
+"c:\Users\micke\OneDrive\Reach_RobotArm_Software\REACH Macros\Move Filter Funnel.txt", "TXT", 0, 0, 0, 13, 0, 0, 0, 0, 0, 13
+"c:\Users\micke\OneDrive\Reach_RobotArm_Software\REACH Macros\Move Tiny Beaker.txt", "TXT", 0, 0, 0, 10, 0, 0, 0, 0, 0, 10
+"c:\Users\micke\OneDrive\Reach_RobotArm_Software\REACH Macros\WipeLiquid.txt", "TXT", 0, 0, 0, 16, 0, 0, 0, 0, 0, 16
+"c:\Users\micke\OneDrive\Reach_RobotArm_Software\REACH Macros\WipeLiquid2.txt", "TXT", 0, 0, 0, 17, 0, 0, 0, 0, 0, 17
+"c:\Users\micke\OneDrive\Reach_RobotArm_Software\REACH Macros\WipeLiquid3.txt", "TXT", 0, 0, 0, 21, 0, 0, 0, 0, 0, 21
+"c:\Users\micke\OneDrive\Reach_RobotArm_Software\REACH Macros\justtest.txt", "TXT", 0, 0, 0, 7, 0, 0, 0, 0, 0, 7
+"c:\Users\micke\OneDrive\Reach_RobotArm_Software\app.py", "Python", 0, 204, 0, 0, 0, 0, 0, 26, 33, 263
+"c:\Users\micke\OneDrive\Reach_RobotArm_Software\desktop.ini", "Ini", 2, 0, 0, 0, 0, 0, 0, 0, 1, 3
+"c:\Users\micke\OneDrive\Reach_RobotArm_Software\memo.txt", "TXT", 0, 0, 0, 0, 0, 0, 0, 0, 1, 1
+"c:\Users\micke\OneDrive\Reach_RobotArm_Software\start_robot_server.bat", "Batch", 0, 0, 0, 0, 0, 5, 0, 0, 2, 7
+"c:\Users\micke\OneDrive\Reach_RobotArm_Software\static\index.html", "Django Template", 0, 0, 0, 0, 131, 0, 0, 0, 12, 143
+"c:\Users\micke\OneDrive\Reach_RobotArm_Software\static\reach-control.css", "PostCSS", 0, 0, 376, 0, 0, 0, 0, 4, 69, 449
+"c:\Users\micke\OneDrive\Reach_RobotArm_Software\static\reach-control.js", "JavaScript", 0, 0, 0, 0, 0, 0, 539, 11, 73, 623
+"Total", "-", 2, 204, 376, 250, 131, 5, 539, 41, 191, 1739

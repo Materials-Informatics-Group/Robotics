@@ -1,0 +1,75 @@
+/* ================================================================================================
+Project: REACH App — UI web application to control the REACH robot arm
+Institution: Hokkaido University (2025)
+Last Update: Q3 2025
+------------------------------------------------------------------------------------------------
+Authors:
+  • Mikael Nicander Kuwahara — Lead System Designer & Lead Developer (2024–)
+------------------------------------------------------------------------------------------------
+File: panel_browser.css
+Purpose:
+  • Styles for the browser-only webcam vision panel (panel_browser.html).
+  • Provides a minimal layout with a video stream, overlay canvas, controls, and optional log.
+================================================================================================ */
+
+/* Base page styling: dark theme + system font stack. */
+body {
+    margin: 0;
+    font: 14px system-ui, -apple-system, Segoe UI, Roboto;
+    background: #111;
+    color: #eee;
+}
+
+/* Outer wrapper: simple padding around content. */
+.wrap {
+    padding: 10px;
+}
+
+/* Vision container: anchors the overlay canvas above the video. */
+.vision-block {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    max-width: 960px;
+}
+
+/* Webcam video element: responsive width with preserved aspect ratio. */
+video {
+    width: 100%;
+    height: auto;
+    display: block;
+    background: #000;
+}
+
+/* Overlay canvas: absolutely positioned to cover the video; receives clicks. */
+canvas {
+    position: absolute;
+    left: 0;
+    top: 0;
+    pointer-events: auto;
+}
+
+/* Controls row: compact, wrapping layout for small screens. */
+.controls {
+    margin-top: 8px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* Form elements inherit base font for visual consistency. */
+select,
+button,
+label {
+    font: inherit;
+}
+
+/* Optional debug log: terminal-style green-on-black. */
+pre {
+    background: #000;
+    color: #0f0;
+    padding: 8px;
+    overflow: auto;
+    max-height: 220px;
+}

@@ -1,0 +1,71 @@
+<!-- =================================================================================================
+Project:  REACH App — UI web application to control the REACH robot arm
+Institution: Hokkaido University
+Last Update: Q3 2025
+-------------------------------------------------------------------------------------------------
+Authors:
+  • Mikael Nicander Kuwahara — Lead System Designer & Lead Developer (2024–)
+
+File: panel_browser.html
+Purpose:
+  • Standalone browser-camera vision panel intended for the Vision tab in index.html
+  • “Browser only” webcam control (no server-side camera feed)
+Notes:
+  • Served via Flask/Jinja; uses url_for('vision.static', ...) to load assets from the 'vision' blueprint
+  • Kept as an optional module for future users who prefer client-side-only camera access
+  • This file intentionally avoids project-specific logic beyond basic UI wiring
+================================================================================================= -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Robot Vision (Browser Camera)</title>
+
+  <!-- Stylesheet from the 'vision' blueprint's static folder -->
+  <link rel="stylesheet" href="{{ url_for('vision.static', filename='panel_browser.css') }}">
+</head>
+<body>
+  <!-- ========== Layout Wrapper ================================================================ -->
+  <div class="wrap">
+
+    <!-- ========== Vision Block: Browser webcam preview + overlay canvas ======================= -->
+    <div class="vision-block">
+      <!-- Live webcam video element (autoplay + muted for browser autoplay policies) -->
+      <video id="v" autoplay playsinline muted></video>
+
+      <!-- Overlay canvas for drawing detections/annotations (same pixel area as <video>) -->
+      <canvas id="ov"></canvas>
+    </div>
+
+    <!-- ========== Controls: brightness toggle, color/tag selection, and action button ========= -->
+    <div class="controls">
+      <!-- Ambient-light hint (used by panel_browser.js to tune thresholds) -->
+      <label><input type="checkbox" id="bright" checked> Bright environment</label>
+
+      <!-- Target selector: choose a color or a tag symbol the vision routine should search for -->
+      <select id="sel">
+        <optgroup label="Colors">
+          <option>red</option><option>orange</option><option>yellow</option>
+          <option>green</option><option>cyan</option><option>blue</option>
+          <option>purple</option><option>pink</option><option>white</option>
+          <option>gray</option><option>black</option>
+        </optgroup>
+        <optgroup label="Tags">
+          <option>A</option><option>B</option><option>C</option><option>D</option>
+          <option>1</option><option>2</option><option>3</option><option>4</option>
+        </optgroup>
+      </select>
+
+      <!-- Trigger a single detection pass (behavior defined in panel_browser.js) -->
+      <button id="find">Find</button>
+    </div>
+
+    <!-- ========== Log: diagnostic output for users/devs ======================================= -->
+    <pre id="log"></pre>
+  </div>
+
+  <!-- ========== Script: panel controller and vision logic (client-side) ======================= -->
+  <script src="{{ url_for('vision.static', filename='panel_browser.js') }}"></script>
+</body>
+</html>

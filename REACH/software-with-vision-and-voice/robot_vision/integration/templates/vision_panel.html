@@ -1,0 +1,107 @@
+<!-- =================================================================================================
+Project: REACH App — UI web application to control the REACH robot arm
+Institution: Hokkaido University (2025)
+Last Update: Q3 2025
+-------------------------------------------------------------------------------------------------
+Authors:
+  • Mikael Nicander Kuwahara — Lead System Designer & Lead Developer (2024–)
+-------------------------------------------------------------------------------------------------
+File: vision_panel.html
+Purpose:
+  • Vision panel using the server-side camera (MJPEG stream) with an overlay canvas for annotations.
+  • Used within the main UI (index.html) or standalone when the server camera is enabled.
+
+Endpoints & Assets:
+  • Stream: {{ url_for('vision.stream') }}
+  • CSS:    {{ url_for('vision.static', filename='vision_panel.css') }}
+  • JS:     {{ url_for('vision.static', filename='vision_panel.js') }}
+            {{ url_for('vision.static', filename='calibration_ui.js') }}
+
+Notes:
+  • The <canvas id="visionOverlay"> is sized/aligned in display coordinates to match <img id="visionStream">.
+  • Markup is intentionally minimal; interaction and drawing logic live in the JS files above.
+================================================================================================= -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <!-- Scales UI on mobile without affecting desktop -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Robot Vision</title>
+
+  <!-- Stylesheet served from the 'vision' blueprint -->
+  <link rel="stylesheet" href="{{ url_for('vision.static', filename='vision_panel.css') }}">
+</head>
+<body>
+  <!-- =========================================================================================
+       REACH Vision Panel (Server-Camera)
+       - Shows MJPEG stream from Flask endpoint {{ url_for('vision.stream') }}
+       - Draws detections on a canvas aligned to the <img> element (display coordinates)
+       =======================================================================================-->
+  <div class="wrap">
+
+    <!-- ======= Vision Stream + Overlay ====================================================== -->
+    <div class="vision-block">
+      <!-- Server-camera MJPEG stream (kept as <img> for broad compatibility) -->
+      <img id="visionStream" src="{{ url_for('vision.stream') }}" alt="camera stream">
+      <!-- Overlay drawn in display coordinates (scaled to the <img> size by JS) -->
+      <canvas id="visionOverlay"></canvas>
+    </div>
+
+    <!-- ======= Controls ==================================================================== -->
+    <div class="controls">
+      <!-- Target selector: choose a color or tag the vision routine should find -->
+      <label for="colorSelect" style="margin-right:.5rem;">Target</label>
+      <select id="colorSelect">
+        <optgroup label="Colors">
+          <option value="red">red</option>
+          <option value="orange">orange</option>
+          <option value="yellow">yellow</option>
+          <option value="green">green</option>
+          <option value="cyan">cyan</option>
+          <option value="blue">blue</option>
+          <option value="purple">purple</option>
+          <option value="pink">pink</option>
+          <option value="white">white</option>
+          <option value="gray">gray</option>
+          <option value="black">black</option>
+        </optgroup>
+        <optgroup label="Tags">
+          <option value="A">A</option><option value="B">B</option>
+          <option value="C">C</option><option value="D">D</option>
+          <option value="1">1</option><option value="2">2</option>
+          <option value="3">3</option><option value="4">4</option>
+        </optgroup>
+      </select>
+
+      <!-- Explicitly type='button' to avoid any default form behavior -->
+      <button id="findBtn" type="button">Find</button>
+
+      <!-- 2.5D calibration controls -->
+      <div class="vision-controls" style="margin-top:.5rem;">
+        <strong>2.5D Vision / Movement Calibration</strong>
+        <button id="calibStartBtn" type="button">Start Calibration</button>
+        <!-- Live status text for screen readers and users -->
+        <span id="calibStatus" role="status" aria-live="polite"
+              style="margin-left:.5rem;color:#7ad;">Idle</span>
+      </div>
+    </div>
+
+    <!-- Optional debug log (disabled by default) -->
+    <!-- <pre id="log" class="log"></pre> -->
+
+  </div>
+
+  <!-- ======= Scripts ======================================================================= -->
+  <!-- Panel controller and overlay logic -->
+  <script src="{{ url_for('vision.static', filename='vision_panel.js') }}"></script>
+  <!-- Shared calibration UI helpers -->
+  <script src="{{ url_for('vision.static', filename='calibration_ui.js') }}"></script>
+
+  <noscript>
+    <p style="padding:1rem;background:#fee;border-left:4px solid #e66;">
+      JavaScript is required for the vision panel UI.
+    </p>
+  </noscript>
+</body>
+</html>

@@ -1,0 +1,106 @@
+/* ================================================================================================
+Project: REACH App — UI web application to control the REACH robot arm
+Institution: Hokkaido University (2025)
+Last Update: Q3 2025
+------------------------------------------------------------------------------------------------
+Authors:
+  • Mikael Nicander Kuwahara — Lead System Designer & Lead Developer (2024–)
+------------------------------------------------------------------------------------------------
+File: vision_panel.css
+Purpose:
+  • Styles for the Vision Panel (server-camera mode).
+  • Provides a card-style stream container with an overlay canvas and simple controls.
+================================================================================================ */
+
+/* Root-level design tokens (custom properties). */
+:root { 
+  --card-max: 960px; 
+}
+
+/* Base page styling: dark theme + consistent system font stack. */
+body { 
+  margin: 0; 
+  background: #111; 
+  color: #eee; 
+  font: 14px system-ui, -apple-system, Segoe UI, Roboto; 
+}
+
+/* Outer layout wrapper: grid for simple vertical stacking + centering. */
+.wrap { 
+  padding: 10px; 
+  display: grid; 
+  gap: 8px; 
+  place-items: center; 
+}
+
+/* Vision stream card: relative container to anchor absolute overlay; clipped rounded corners. */
+.vision-block {
+  position: relative;
+  width: 100%;
+  max-width: var(--card-max);
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+}
+
+/* Stream image: responsive width, preserve aspect with auto height. */
+#visionStream {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: auto;
+}
+
+/* Overlay canvas: absolutely positioned to cover the stream image; receives clicks. */
+#visionOverlay {
+  position: absolute;
+  left: 0; top: 0;
+  pointer-events: auto;
+}
+
+/* Controls row: simple flex layout aligned to the left within card width. */
+.controls {
+  width: 100%;
+  max-width: var(--card-max);
+  display: flex; gap: 8px; align-items: center; justify-content: flex-start;
+}
+
+/* Form controls inherit font for visual consistency. */
+select, button { 
+  font: inherit; 
+}
+
+/* Primary button styling: compact pill with high-contrast fill. */
+button { 
+  padding: 6px 10px; 
+  border: 0; 
+  border-radius: 6px; 
+  cursor: pointer; 
+  background: #005599; 
+  color: #fff; 
+}
+
+/* Hover affordance for primary buttons. */
+button:hover { 
+  background: #0b6eb3; 
+}
+
+/* Optional debug log panel: terminal-like green-on-black within card width. */
+.log {
+  width: 100%;
+  max-width: var(--card-max);
+  background: #000; color: #0f0;
+  padding: 8px; border-radius: 6px; overflow: auto; max-height: 220px;
+}
+
+/* Badge labels positioned above boxes on the overlay layer; no pointer interception. */
+.badge {
+  position: absolute;
+  padding: 2px 6px;
+  font: 13px/16px system-ui, -apple-system, Segoe UI, Roboto;
+  color: #fff;
+  background: rgba(0,0,0,0.65);
+  border-radius: 4px;
+  pointer-events: none;
+}
