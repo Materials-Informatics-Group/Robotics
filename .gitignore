@@ -1,0 +1,37 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv/
+venv/
+
+# Node (if any)
+node_modules/
+
+# Build / logs / temp
+dist/
+build/
+*.log
+
+# Certs / keys / secrets
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.der
+*.jks
+*.keystore
+
+# App local configs you don’t want in git (adjust if safe to keep)
+run.config.json
