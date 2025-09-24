@@ -6,6 +6,11 @@ Thumbs.db
 .vscode/
 .idea/
 
+# VS Code Counter artifacts
+REACH/software-with-vision-and-voice/.VSCodeCounter/
+REACH/software-with-vision-and-voice/.VSCodeCounter*/
+
+
 # Python
 __pycache__/
 *.pyc

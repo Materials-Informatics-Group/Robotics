@@ -1,0 +1,9 @@
+# keep ignores scoped to this app only
+.vscode/
+REACH Macros/
+memo.txt
+desktop.ini
+run.bat
+run.ps1
+setup_venv.ps1
+run.config.json

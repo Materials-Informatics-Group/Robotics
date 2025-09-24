@@ -1,5 +1,0 @@
-{
-  "python.defaultInterpreterPath": "${env:LOCALAPPDATA}\\venvs\\${workspaceFolderBasename}\\Scripts\\python.exe",
-  "python.terminal.activateEnvironment": false,
-  "python.testing.pytestEnabled": true
-}
