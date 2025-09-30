@@ -203,6 +203,52 @@ Notes:
         <input type="number" id="bmdDuration" min="0" max="5000" step="100" value="300" title="Milliseconds" />
       </div>
 
+      <!-- New: Add 2.5D step to macro -->
+      <div class="macro-row" id="macro-pp-row">
+        <label>Pick:
+          <select id="macroPPColor" title="Source (tag or color)">
+            <optgroup label="Tags">
+              <option value="A">tag A</option><option value="B">tag B</option>
+              <option value="C">tag C</option><option value="D">tag D</option>
+              <option value="1">tag 1</option><option value="2">tag 2</option>
+              <option value="3">tag 3</option><option value="4">tag 4</option>
+            </optgroup>
+            <optgroup label="Colors">
+              <option value="red">red</option><option value="green">green</option>
+              <option value="blue">blue</option><option value="yellow">yellow</option>
+              <option value="orange">orange</option><option value="purple">purple</option>
+            </optgroup>
+          </select>
+        </label>
+
+        <label>Place at:
+          <select id="macroPPTag" title="Destination (tag or color)">
+            <optgroup label="Tags">
+              <option value="A">tag A</option><option value="B">tag B</option>
+              <option value="C">tag C</option><option value="D">tag D</option>
+              <option value="1">tag 1</option><option value="2">tag 2</option>
+              <option value="3">tag 3</option><option value="4">tag 4</option>
+            </optgroup>
+            <optgroup label="Colors">
+              <option value="red">red</option><option value="green">green</option>
+              <option value="blue">blue</option><option value="yellow">yellow</option>
+              <option value="orange">orange</option><option value="purple">purple</option>
+            </optgroup>
+          </select>
+        </label>
+
+        <label>Operation:
+          <select id="macroPPOp" title="Operation">
+            <option value="place">grab → place (gentle)</option>
+            <option value="drop">grab → drop (no lower)</option>
+            <option value="pour">grab → pour → return</option>
+          </select>
+        </label>
+
+        <button type="button" onclick="macroAddPP()">➕ Add 2.5D step</button>
+      </div>
+
+
       <div class="macro-row">
         <button onclick="macroClear()">🗑 Clear</button>
         <button onclick="macroSaveToFile()">💾 Save</button>
