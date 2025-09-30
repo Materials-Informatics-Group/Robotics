@@ -111,6 +111,9 @@ function validateCommand(cmd) {
   if (cmd === "P") return null;
   if (/^P[0-5]$/.test(cmd)) return null;
 
+  // 2.5D macro step (handled at playback time): "PP pick=... dest=... op=..."
+  if (cmd.startsWith("PP ")) return null;
+
   return "Unknown or invalid command format.";
 }
 
@@ -553,6 +556,25 @@ function macroAddBMD() {
   updateMacroTextbox(1);
 }
 
+/** Insert a PP (2.5D) macro step using the dropdowns below. */
+function macroAddPP() {
+  const color = (document.getElementById('macroPPColor') || {}).value || 'red';
+  const dest  = (document.getElementById('macroPPTag')   || {}).value || 'A';
+  const op    = (document.getElementById('macroPPOp')    || {}).value || 'place';
+
+  // Canonical human-friendly line; parser is flexible, but keep this shape:
+  // PP pick=<source> dest=<destination> op=<place|drop|pour>
+  const line = `PP pick=${color} dest=${dest} op=${op}`;
+
+  const textarea = document.getElementById('macroTextbox');
+  let caretLine = textarea.value.substring(0, textarea.selectionStart).split('\n').length - 1;
+  if (caretLine < macroSteps.length) caretLine += 1;
+
+  macroSteps.splice(caretLine, 0, line);
+  updateMacroTextbox(1);
+}
+
+
 /** Clear macro editor and state. */
 function macroClear() {
   macroSteps = [];
@@ -622,6 +644,54 @@ function macroLoadFromFile() {
   input.click();
 }
 
+/** Parse "PP ..." line into { pick, dest, op }.
+ * Accepts flexible forms like:
+ *   PP pick=red dest=C op=place
+ *   PP red -> C : pour
+ *   PP red C drop
+ */
+function parsePP(line) {
+  const raw = line.trim();
+  if (!raw.toUpperCase().startsWith('PP')) return null;
+
+  // Try key=value form first
+  const kv = {};
+  raw.replace(/([a-z]+)\s*=\s*([^\s]+)/gi, (_, k, v) => (kv[k.toLowerCase()] = v));
+  let pick = kv.pick, dest = kv.dest, op = kv.op;
+
+  // Fallback: free-form "PP red -> C : pour" or "PP red C drop"
+  if (!pick || !dest) {
+    const mArrow = raw.match(/^PP\s+(\S+)\s*->\s*([A-Za-z0-9]+)(?:\s*[:]\s*(\S+))?/i);
+    const mFree  = raw.match(/^PP\s+(\S+)\s+([A-Za-z0-9]+)(?:\s+(\S+))?/i);
+    const m = mArrow || mFree;
+    if (m) {
+      pick = pick || m[1];
+      dest = dest || m[2];
+      op   = op   || m[3];
+    }
+  }
+
+  op = (op || 'place').toLowerCase();
+  if (!pick || !dest) throw new Error('PP line needs pick and dest.');
+  if (!['place','drop','pour'].includes(op)) throw new Error('PP op must be place|drop|pour.');
+  return { pick, dest, op };
+}
+
+/** Execute a parsed PP step using pickplace.js public API. */
+async function runPP({ pick, dest, op }) {
+  if (op === 'drop') {
+    if (typeof window.runGrabDrop !== 'function') throw new Error('runGrabDrop not available');
+    await window.runGrabDrop(pick, dest);
+  } else if (op === 'pour') {
+    if (typeof window.runGrabPour !== 'function') throw new Error('runGrabPour not available');
+    await window.runGrabPour(pick, dest);
+  } else {
+    if (typeof window.runPickPlace !== 'function') throw new Error('runPickPlace not available');
+    await window.runPickPlace(pick, dest);
+  }
+}
+
+
 /**
  * Play the macro shown in the editor (or loop it if toggle set).
  * Uses a tiny visual arrow (➡️) to indicate the current line.
@@ -663,8 +733,21 @@ async function macroPlay() {
     if (step.startsWith('WAIT')) {
       setTimeout(runStep, parseInt(step.substring(4)) * 1000);
     } else {
-      await dispatchCommand(step, false);
-      setTimeout(runStep, 80);
+      if (step.startsWith('PP ')) {
+        try {
+          const spec = parsePP(step);
+          await runPP(spec);
+          setTimeout(runStep, 80);
+        } catch (err) {
+          console.error('PP step failed:', err);
+          // stop playback on error, keep arrow on failing line for clarity
+          isPlayingMacro = false;
+          return;
+        }
+      } else {
+        await dispatchCommand(step, false);
+        setTimeout(runStep, 80);
+      }
     }
   };
 
@@ -734,13 +817,32 @@ window.addEventListener('DOMContentLoaded', async () => {
     document.body.style.marginTop = '70px';
   }, 30000);
 
-  // Collapsible panels—ignore clicks on controls and the vision area
+  // Collapsible panels — only toggle via the little triangle or the title
   document.querySelectorAll('.panel').forEach(panel => {
-    panel.addEventListener('click', e => {
-      if (e.target.closest('input, button, textarea, label, .switch, .vision-block, .slider-wrapper')) return;
-      panel.classList.toggle('collapsed');
-    });
+    const btn   = panel.querySelector('.toggle-btn');
+    const title = panel.querySelector('.panel-title');
+
+    const toggle = () => panel.classList.toggle('collapsed');
+
+    if (btn) {
+      btn.setAttribute('role', 'button');
+      btn.setAttribute('tabindex', '0');
+      btn.addEventListener('click', e => { e.stopPropagation(); toggle(); });
+      btn.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+      });
+    }
+
+    if (title) {
+      title.setAttribute('role', 'button');
+      title.setAttribute('tabindex', '0');
+      title.addEventListener('click', e => { e.stopPropagation(); toggle(); });
+      title.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+      });
+    }
   });
+
 
   setupSliders();
 
