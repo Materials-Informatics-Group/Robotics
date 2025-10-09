@@ -79,6 +79,27 @@ def make_vision_blueprint(config=None):
         """Return a human-friendly label for a detected tag id using conf.data['tag_id_map'], if any."""
         idmap = (engine.conf.data.get("tag_id_map") or {})
         return idmap.get(str(tag_id), str(tag_id))
+    
+    def _px_to_world_mm(H, plane_size_mm, x, y):
+        """pixel (x,y) -> world (X,Y) in mm using H; Y origin at bottom (to match pick/place)."""
+        d = H[2][0]*x + H[2][1]*y + H[2][2]
+        if abs(d) < 1e-9:
+            return None
+        Xp = (H[0][0]*x + H[0][1]*y + H[0][2]) / d
+        Yp = (H[1][0]*x + H[1][1]*y + H[1][2]) / d
+        Hmm = float(plane_size_mm[1])
+        return (Xp, Hmm - Yp)
+
+    def _inside_workspace(H, plane_size_mm, cx, cy, margin_mm=15.0):
+        """True if pixel-center (cx,cy) maps inside calibrated plane with a safety margin."""
+        pt = _px_to_world_mm(H, plane_size_mm, cx, cy)
+        if pt is None:
+            return False
+        X, Y = pt
+        Wmm, Hmm = float(plane_size_mm[0]), float(plane_size_mm[1])
+        m = float(margin_mm)
+        return (m < X < (Wmm - m)) and (m < Y < (Hmm - m))
+
 
     # -------------------------------------------------------------------------------------------
     # Server-camera routes (VisionEngine-based)
@@ -103,7 +124,37 @@ def make_vision_blueprint(config=None):
         payload = request.get_json(silent=True) or {}
         modes = payload.get("modes", [])
         params = payload.get("params", {})
-        return jsonify(engine.analyze(modes, params))
+        # return jsonify(engine.analyze(modes, params))
+
+        # 1) Run the engine as before
+        res = engine.analyze(modes, params)
+
+        # Only gate when app.py told us to (i.e., real camera)
+        try:
+            limit_to_workspace = bool(engine.conf.data.get("limit_to_workspace", False))
+            if limit_to_workspace and res.get("ok"):
+                calib = engine.calib or {}
+                H = calib.get("H")
+                plane = calib.get("plane_size_mm", [0, 0])
+                dets = list(res.get("detections") or [])
+                if H and isinstance(plane, (list, tuple)) and len(plane) == 2 and plane[0] and plane[1]:
+                    filtered = []
+                    for d in dets:
+                        if "bbox" in d and d["bbox"]:
+                            x, y, w, h = d["bbox"]
+                            cx, cy = x + w/2.0, y + h/2.0
+                        else:
+                            cx = float(d.get("x", 0)) + float(d.get("w", 0)) / 2.0
+                            cy = float(d.get("y", 0)) + float(d.get("h", 0)) / 2.0
+                        if _inside_workspace(H, plane, cx, cy, margin_mm=15.0):
+                            filtered.append(d)
+                    res["detections"] = filtered
+        except Exception:
+            # fail-safe: if anything goes wrong, return unfiltered
+            pass
+
+        return jsonify(res)
+    
 
     def mjpeg_gen():
         """
