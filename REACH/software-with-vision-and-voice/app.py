@@ -43,11 +43,13 @@ PASSWORD = "letmein"
 BAUD_RATE = 9600
 ENABLE_AUTO_RECONNECT = True
 USE_HTTPS = True  # Set to True if you want HTTPS
-SSL_CERT = '192.168.12.116+1.pem'        # e.g. "myrobot.local.pem"
-SSL_KEY  = '192.168.12.116+1-key.pem'    # e.g. "myrobot.local-key.pem"
+SSL_CERT = '123.123.12.123+1.pem'        # e.g. "myrobot.local.pem"
+SSL_KEY  = '123.123.12.123+1-key.pem'    # e.g. "myrobot.local-key.pem"
 
-# ---- Vision (embedded; optional blueprint) ----
-CAMERA_INDEX = 0  # REACH laptop uses index 0
+DEFAULT_PHYSICAL_INDEX = 0
+CAMERA_INDEX = int(os.getenv("REACH_CAMERA_INDEX", DEFAULT_PHYSICAL_INDEX))
+USE_WORKSPACE_GATE = (CAMERA_INDEX == DEFAULT_PHYSICAL_INDEX)
+
 try:
     from robot_vision.integration.flask_blueprint import make_vision_blueprint
     vision_bp = make_vision_blueprint(config={
@@ -59,6 +61,7 @@ try:
         "bright": True,  # default to bright environment
         # Optional: label mapping for pretty tag names (adjust as you like)
         "tag_id_map": {"0": "A", "1": "B", "2": "C", "3": "D", "4": "1", "5": "2", "6": "3", "7": "4"},
+        "limit_to_workspace": USE_WORKSPACE_GATE,  
     })
     app.register_blueprint(vision_bp, url_prefix="/vision")
     print("[vision] blueprint registered at /vision")
