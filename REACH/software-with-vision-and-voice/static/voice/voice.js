@@ -52,6 +52,7 @@ const ASR_NORMALIZERS = [
   [/\bpeak\b/g, " pick"],
   [/\bpeek\b/g, " pick"],
   [/\bpique\b/g, " pick"],
+  [/\bpig\b/g, " pick"],
 ];
 
 /**
