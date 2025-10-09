@@ -1,4 +1,4 @@
-﻿# =================================================================================================
+# =================================================================================================
 # Project: REACH App — UI web application to control the REACH robot arm
 # Institution: Hokkaido University (2025)
 # Last Update: Q3 2025
@@ -6,196 +6,297 @@
 # Authors:
 #   • Mikael Nicander Kuwahara — Lead System Designer & Lead Developer (2024–)
 # -------------------------------------------------------------------------------------------------
-# File: robot_vision/vision_engine.py
+# File: flask_blueprint.py
 # Purpose:
-#   • Embedded, in-process vision engine used by the Flask blueprint and other callers.
-#   • Wraps camera access, provides tag/color analysis, and click-based classification.
+#   • Flask blueprint exposing the Vision UI/API.
+#   • Supports both server-camera mode (MJPEG stream from VisionEngine) and browser-only mode
+#     (getUserMedia frame uploads from the client).
+#
+# Public Routes (mounted under /vision):
+#   GET  /health
+#   POST /analyze                # server-camera analysis via VisionEngine
+#   GET  /stream                 # server-camera MJPEG stream
+#   GET  /panel                  # server-camera vision panel (templates/vision_panel.html)
+#   GET  /panel_browser          # browser-camera panel (templates/panel_browser.html)
+#   POST /upload/analyze         # browser-camera: analyze a click location on uploaded frame
+#   POST /upload/find            # browser-camera: find a color on uploaded frame
+#   POST /upload/find_tag        # browser-camera: find an ArUco tag on uploaded frame
 # Notes:
-#   • frame.shape[:2] == (H, W) but responses expose frame_size as [W, H] (frontend convention).
-#   • Local imports of cv2/numpy inside analyze() allow importing this module without cv2 installed.
+#   • frame.shape[:2] returns (H, W). Responses return frame_size as [W, H] to match frontend code.
+#   • ArUco tag labels can be remapped via conf.data["tag_id_map"].
 # =================================================================================================
 
-import time
-from typing import Dict, Any, List
-from .camera import CameraStream
-from .config import VisionConfig
-from .colors import detect_colors, mean_hsv_at, hsv_match_name
-from .tags import detect_aruco_tags
+from flask import Blueprint, jsonify, request, Response, render_template
+import cv2, time, base64, numpy as np
+
+from ..vision_engine import VisionEngine
+from ..colors import detect_colors, mean_hsv_at, hsv_match_name
+from ..tags   import detect_aruco_tags
 
 
-class VisionEngine:
-    """Embedded, in-process vision engine.
-
-    Attributes:
-        conf (VisionConfig): Current vision configuration (mutable).
-        cam (CameraStream): Background camera stream (server-camera mode).
+def make_vision_blueprint(config=None):
     """
+    Create and return the Flask Blueprint that serves all vision-related endpoints and pages.
 
-    def __init__(self, config: Dict[str, Any] = None):
-        """Initialize engine, merge optional config, start camera, and warm up first frame."""
-        self.conf = VisionConfig()
-        if config:
-            self.conf.update(config)
-        c = self.conf.data
+    Args:
+        config (dict|None): Optional configuration blob passed to VisionEngine and used
+            for certain route defaults (e.g., stream_fps, tag dictionary, color config).
 
-        # Start camera with configured index/size (MJPEG/YUY2 fallback handled in CameraStream)
-        self.cam = CameraStream(
-            index=c['camera_index'],
-            width=c['frame_width'],
-            height=c['frame_height']
-        ).start()
+    Returns:
+        flask.Blueprint: A blueprint named 'vision' with routes mounted at /vision/*.
 
-        # Wait briefly for the first non-empty frame to avoid black startup
-        self.cam.wait_for_frame(timeout=2.0)
+    Exposes:
+        /vision/health
+        /vision/analyze                (server-camera mode; uses VisionEngine camera)
+        /vision/stream                 (server-camera MJPEG stream)
+        /vision/panel                  (server-camera panel; existing)
+        /vision/panel_browser          (browser-camera panel; no camera index)
+        /vision/upload/analyze         (browser-camera: click analyze)
+        /vision/upload/find            (browser-camera: find color)
+        /vision/upload/find_tag        (browser-camera: find ArUco tag)
+    """
+    bp = Blueprint('vision', __name__, template_folder='templates', static_folder='static' )
 
-    def _label_for_id(self, tag_id: int) -> str:
-        """Map a numeric ArUco id to a friendly label using config.tag_id_map (fallback: str(id))."""
-        mapping = self.conf.data.get("tag_id_map", {}) or {}
-        return mapping.get(str(tag_id), str(tag_id))
+    # Engine instance for server-camera mode (captures frames and performs analysis).
+    engine = VisionEngine(config=config or {})
 
-    def get_frame(self):
-        """Return the latest BGR frame from the camera (or None if none yet)."""
-        return self.cam.read()
+    # -------------------------------------------------------------------------------------------
+    # Helpers
+    # -------------------------------------------------------------------------------------------
+    def _decode_data_url(data_url: str) -> np.ndarray:
+        """Decode a data: URL (JPEG/PNG) into a BGR numpy image (cv2)."""
+        if not data_url or "," not in data_url:
+            raise ValueError("Invalid data URL")
+        _, encoded = data_url.split(",", 1)
+        buf = base64.b64decode(encoded)
+        arr = np.frombuffer(buf, dtype=np.uint8)
+        img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        if img is None:
+            raise ValueError("Failed to decode image")
+        return img
 
-    def analyze(self, modes, params):
-        """Run analysis for the current camera frame.
+    def _label_for_tag_id(tag_id: int) -> str:
+        """Return a human-friendly label for a detected tag id using conf.data['tag_id_map'], if any."""
+        idmap = (engine.conf.data.get("tag_id_map") or {})
+        return idmap.get(str(tag_id), str(tag_id))
+    
+    def _px_to_world_mm(H, plane_size_mm, x, y):
+        """pixel (x,y) -> world (X,Y) in mm using H; Y origin at bottom (to match pick/place)."""
+        d = H[2][0]*x + H[2][1]*y + H[2][2]
+        if abs(d) < 1e-9:
+            return None
+        Xp = (H[0][0]*x + H[0][1]*y + H[0][2]) / d
+        Yp = (H[1][0]*x + H[1][1]*y + H[1][2]) / d
+        Hmm = float(plane_size_mm[1])
+        return (Xp, Hmm - Yp)
 
-        Behavior:
-          • If params.click is present, prefer returning ONLY the entity under the cursor:
-            1) If click lies within a tag bbox → return that tag.
-            2) Else classify color at the click; attempt to segment that color and keep the region
-               containing the click (or fall back to a small box around the click for feedback).
-          • If no click:
-            - "tags" in modes → detect ArUco tags (optional filter via params.tag_labels)
-            - "color" in modes → detect only requested color names via params.colors
+    def _inside_workspace(H, plane_size_mm, cx, cy, margin_mm=15.0):
+        """True if pixel-center (cx,cy) maps inside calibrated plane with a safety margin."""
+        pt = _px_to_world_mm(H, plane_size_mm, cx, cy)
+        if pt is None:
+            return False
+        X, Y = pt
+        Wmm, Hmm = float(plane_size_mm[0]), float(plane_size_mm[1])
+        m = float(margin_mm)
+        return (m < X < (Wmm - m)) and (m < Y < (Hmm - m))
 
-        Args:
-            modes (list[str]|None): Optional list; supports "tags" and/or "color".
-            params (dict|None): Options:
-              - bright (bool): scene hint for color thresholds (defaults to conf.data["bright"]).
-              - click: {"x": int, "y": int}  → click selection mode.
-              - tag_labels: [str]            → filter set of tag labels when modes includes "tags".
-              - colors: [str]                → explicit list of color names when modes includes "color".
+
+    # -------------------------------------------------------------------------------------------
+    # Server-camera routes (VisionEngine-based)
+    # -------------------------------------------------------------------------------------------
+    @bp.route("/health")
+    def health():
+        """Simple health probe; indicates whether a frame can be captured right now."""
+        return jsonify({"status": "ok", "camera_ready": engine.get_frame() is not None})
+
+    @bp.route("/analyze", methods=["POST"])
+    def analyze():
+        """
+        Analyze the current server-camera frame.
+
+        Request JSON:
+            { "modes": [...], "params": {...} }
 
         Returns:
-            dict: {
-              "ok": bool,
-              "frame_size": [W, H],
-              "timestamp": float (seconds),
-              "clicked": {...}|None,
-              "detections": [ ... ],
-              "error": str (optional)
-            }
+            JSON with fields produced by VisionEngine.analyze(), typically:
+            { "ok": true, "detections": [...], "frame_size": [W, H], ... }
         """
-        import cv2, numpy as np  # local imports so module import doesn't require cv2 on non-vision paths
+        payload = request.get_json(silent=True) or {}
+        modes = payload.get("modes", [])
+        params = payload.get("params", {})
+        # return jsonify(engine.analyze(modes, params))
 
-        frame = self.cam.read()
-        if frame is None:
-            return {"ok": False, "error": "No camera frame"}
+        # 1) Run the engine as before
+        res = engine.analyze(modes, params)
 
-        detections: List[Dict[str, Any]] = []
-        clicked = None
-        p = params or {}
-        bright = bool(p.get("bright", self.conf.data.get("bright", False)))
-        colors_cfg = self.conf.data.get("colors", {})
-        dict_name = self.conf.data.get("aruco", {}).get("dict", "DICT_4X4_50")
+        # Only gate when app.py told us to (i.e., real camera)
+        try:
+            limit_to_workspace = bool(engine.conf.data.get("limit_to_workspace", False))
+            if limit_to_workspace and res.get("ok"):
+                calib = engine.calib or {}
+                H = calib.get("H")
+                plane = calib.get("plane_size_mm", [0, 0])
+                dets = list(res.get("detections") or [])
+                if H and isinstance(plane, (list, tuple)) and len(plane) == 2 and plane[0] and plane[1]:
+                    filtered = []
+                    for d in dets:
+                        if "bbox" in d and d["bbox"]:
+                            x, y, w, h = d["bbox"]
+                            cx, cy = x + w/2.0, y + h/2.0
+                        else:
+                            cx = float(d.get("x", 0)) + float(d.get("w", 0)) / 2.0
+                            cy = float(d.get("y", 0)) + float(d.get("h", 0)) / 2.0
+                        if _inside_workspace(H, plane, cx, cy, margin_mm=15.0):
+                            filtered.append(d)
+                    res["detections"] = filtered
+        except Exception:
+            # fail-safe: if anything goes wrong, return unfiltered
+            pass
 
-        # Helper to test whether a point lies inside a bbox (not used in current code path).
-        def contains(pt, bbox, margin: int = 0):
-            x, y = pt
-            bx, by, bw, bh = bbox
-            return (bx - margin) <= x <= (bx + bw + margin) and (by - margin) <= y <= (by + bh + margin)
+        return jsonify(res)
+    
 
-        # ---------- CLICK: pick ONLY the thing under the cursor --------------------------------
-        click = p.get("click")
-        if click:
-            x = int(click.get("x", -1)); y = int(click.get("y", -1))
-            if x >= 0 and y >= 0:
-                # 1) Prefer TAG if click is inside a tag box
-                try:
-                    tag_dets = detect_aruco_tags(frame, dict_name=dict_name)
-                    for d in tag_dets:
-                        d["label"] = self._label_for_id(d["id"])
-                    for d in tag_dets:
-                        bx, by, bw, bh = d["bbox"]
-                        if (bx <= x <= bx + bw) and (by <= y <= by + bh):
-                            clicked = {"type": "tag", "id": d["id"], "label": d["label"], "center_px": d["center_px"]}
-                            detections = [d]
-                            h, w = frame.shape[:2]
-                            return {"ok": True, "frame_size": [w, h], "timestamp": time.time(),
-                                    "clicked": clicked, "detections": detections}
-                except Exception:
-                    # If ArUco is unavailable or fails, we silently fall through to color classification.
-                    pass
+    def mjpeg_gen():
+        """
+        Generator that yields a multipart/x-mixed-replace MJPEG stream at the configured FPS.
+        """
+        fps_delay = 1.0 / max(1, int((config or {}).get("stream_fps", 20)))
+        while True:
+            frame = engine.get_frame()
+            if frame is None:
+                time.sleep(0.05)
+                continue
+            ok, jpg = cv2.imencode(".jpg", frame)
+            if not ok:
+                continue
+            # Boundary must match 'boundary=frame' in the Response mimetype below.
+            yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + jpg.tobytes() + b"\r\n")
+            time.sleep(fps_delay)
 
-                # 2) Otherwise classify color at the click point
-                H, S, V = mean_hsv_at(frame, x, y, size=24)
+    @bp.route("/stream")
+    def stream():
+        """Serve the MJPEG stream for the server camera."""
+        return Response(mjpeg_gen(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
-                # Local BGR means around the click (helps boundary disambiguation)
-                roi_sz = 20
-                x1, y1 = max(0, x - roi_sz), max(0, y - roi_sz)
-                x2, y2 = min(frame.shape[1], x + roi_sz), min(frame.shape[0], y + roi_sz)
-                roi_bgr = frame[y1:y2, x1:x2]
-                b_mean = float(np.mean(roi_bgr[...,0])) if roi_bgr.size else 0.0
-                g_mean = float(np.mean(roi_bgr[...,1])) if roi_bgr.size else 0.0
-                r_mean = float(np.mean(roi_bgr[...,2])) if roi_bgr.size else 0.0
+    @bp.route("/panel")
+    def panel():
+        """Render the server-camera vision panel UI."""
+        return render_template("vision_panel.html")
 
-                name = hsv_match_name((H, S, V), colors_cfg, bright=bright, bgr_means=(b_mean, g_mean, r_mean))
-                clicked = {"type": "color", "name": name or "unknown", "hsv": [int(H), int(S), int(V)], "point": [x, y]}
+    # -------------------------------------------------------------------------------------------
+    # Browser-camera routes (client uploads a frame)
+    # -------------------------------------------------------------------------------------------
+    @bp.route("/panel_browser")
+    def panel_browser():
+        """Render the browser-only vision panel UI (uses getUserMedia in the browser)."""
+        # Separate HTML/JS/CSS files served from /vision/static and /vision/templates
+        return render_template("panel_browser.html")
 
-                # 3) Try to segment ONLY that color and keep the region containing the click
-                strong = set(k.lower() for k in colors_cfg.keys()) - {"white", "gray", "black"}
-                chosen = name if name in strong else None
-                if chosen:
-                    color_dets = detect_colors(frame, colors_cfg, [chosen], bright=bright)
-                    containing = []
-                    for d in color_dets:
-                        bx, by, bw, bh = d["bbox"]
-                        if (bx <= x <= bx + bw) and (by <= y <= by + bh):
-                            containing.append(d)
-                    if containing:
-                        # Keep the largest region that contains the click
-                        detections = [max(containing, key=lambda d: d["bbox"][2] * d["bbox"][3])]
-                    else:
-                        # Small visual feedback box if segmentation didn’t catch it
-                        pad = 14
-                        bx = max(0, x - pad); by = max(0, y - pad)
-                        bw = min(frame.shape[1] - bx, 2 * pad); bh = min(frame.shape[0] - by, 2 * pad)
-                        detections = [{
-                            "type": "color", "color": name or "clicked",
-                            "bbox": [int(bx), int(by), int(bw), int(bh)],
-                            "center_px": [int(bx + bw/2), int(by + bh/2)],
-                            "score": 1.0
-                        }]
+    @bp.route("/upload/analyze", methods=["POST"])
+    def upload_analyze():
+        """
+        Analyze a single uploaded frame and a click location.
+        Preference: if the click falls inside a detected tag, return that tag; otherwise return color.
+        Request JSON:
+            {
+              "image": "data:image/jpeg;base64,...",
+              "x": <int>, "y": <int>,
+              "bright": <bool>   # optional, hints color thresholding
+            }
+        Response JSON:
+            { "ok": true, "frame_size": [W, H], "clicked": {"x":...,"y":...}, "detections": [...] }
+        """
+        data = request.get_json(silent=True) or {}
+        data_url = data.get("image", "")
+        x = int(data.get("x", -1))
+        y = int(data.get("y", -1))
+        bright = bool(data.get("bright", engine.conf.data.get("bright", False)))
 
-                h, w = frame.shape[:2]
-                return {"ok": True, "frame_size": [w, h], "timestamp": time.time(),
-                        "clicked": clicked, "detections": detections}
+        frame = _decode_data_url(data_url)
+        H, W = frame.shape[:2]  # shape yields (H, W); we return [W, H] to clients
 
-        # ---------- NO CLICK: honor explicit requests -------------------------------------------
-        # Tags (optionally filter by label)
-        if "tags" in (modes or []):
-            try:
-                tag_dets = detect_aruco_tags(frame, dict_name=dict_name)
-                for d in tag_dets:
-                    d["label"] = self._label_for_id(d["id"])
-                want_labels = set([str(x) for x in (p.get("tag_labels") or [])])
-                if want_labels:
-                    tag_dets = [d for d in tag_dets if d.get("label") in want_labels]
-                detections.extend(tag_dets)
-            except Exception as e:
-                return {"ok": False, "error": f"ArUco not available: {e}"}
+        # 1) Prefer tag if click lies inside a tag bbox (with small margin)
+        dict_name = engine.conf.data.get("aruco", {}).get("dict", "DICT_4X4_50")
+        tag_dets = detect_aruco_tags(frame, dict_name=dict_name)
+        for d in tag_dets:
+            d["label"] = _label_for_tag_id(d["id"])
+            bx, by, bw, bh = d["bbox"]
+            if (bx - 4) <= x <= (bx + bw + 4) and (by - 4) <= y <= (by + bh + 4):
+                return jsonify({
+                    "ok": True,
+                    "frame_size": [W, H],
+                    "clicked": {"x": x, "y": y},
+                    "detections": [d]
+                })
 
-        # Colors (only requested names)
-        if "color" in (modes or []):
-            req_colors = [c.lower() for c in (p.get("colors") or [])]
-            if req_colors:
-                detections.extend(detect_colors(frame, colors_cfg, req_colors, bright=bright))
+        # 2) Otherwise, report the color under/around the click (BGR refinement in a 48×48 ROI)
+        Hc, Sc, Vc = mean_hsv_at(frame, x, y, size=24)
+        x1, y1 = max(0, x - 24), max(0, y - 24)
+        x2, y2 = min(W, x + 24), min(H, y + 24)
+        roi = frame[y1:y2, x1:x2]
+        if roi.size:
+            b = float(np.mean(roi[..., 0])); g = float(np.mean(roi[..., 1])); r = float(np.mean(roi[..., 2]))
+        else:
+            b = g = r = 0.0
 
-        h, w = frame.shape[:2]
-        return {"ok": True, "frame_size": [w, h], "timestamp": time.time(),
-                "clicked": clicked, "detections": detections}
+        colors_cfg = engine.conf.data.get("colors", {})
+        name = hsv_match_name((Hc, Sc, Vc), colors_cfg, bright=bright, bgr_means=(b, g, r))
 
-    def stop(self):
-        """Stop camera stream and release resources."""
-        self.cam.stop()
+        det = {
+            "type": "color",
+            "color": name or "unknown",
+            "bbox": [x1, y1, max(2, x2 - x1), max(2, y2 - y1)],
+            "center_px": [int((x1 + x2) / 2), int((y1 + y2) / 2)],
+            "score": 1.0
+        }
+        return jsonify({
+            "ok": True,
+            "frame_size": [W, H],
+            "clicked": {"x": x, "y": y},
+            "detections": [det]
+        })
+
+    @bp.route("/upload/find", methods=["POST"])
+    def upload_find():
+        """
+        Find a specific color on the uploaded frame.
+        Request JSON:
+            { "image": "data:image/jpeg;base64,...", "color": "<name>", "bright": <bool> }
+        Response JSON:
+            { "ok": true, "frame_size": [W, H], "detections": [...] }
+        """
+        data = request.get_json(silent=True) or {}
+        data_url = data.get("image", "")
+        color = (data.get("color") or "").lower()
+        bright = bool(data.get("bright", engine.conf.data.get("bright", False)))
+
+        frame = _decode_data_url(data_url)
+        dets = detect_colors(frame, engine.conf.data.get("colors", {}), [color], bright=bright)
+        H, W = frame.shape[:2]
+        return jsonify({"ok": True, "frame_size": [W, H], "detections": dets})
+
+    @bp.route("/upload/find_tag", methods=["POST"])
+    def upload_find_tag():
+        """
+        Find ArUco tags on the uploaded frame, optionally filtering to a requested tag/label.
+        Request JSON:
+            { "image": "data:image/jpeg;base64,...", "tag": "<id-or-label>" }
+        Response JSON:
+            { "ok": true, "frame_size": [W, H], "detections": [...] }
+        """
+        data = request.get_json(silent=True) or {}
+        data_url = data.get("image", "")
+        want = (data.get("tag") or "").strip()
+
+        frame = _decode_data_url(data_url)
+        dict_name = engine.conf.data.get("aruco", {}).get("dict", "DICT_4X4_50")
+        dets = detect_aruco_tags(frame, dict_name=dict_name)
+        for d in dets:
+            d["label"] = _label_for_tag_id(d["id"])
+        if want:
+            dets = [d for d in dets if str(d["id"]) == want or d["label"] == want]
+
+        H, W = frame.shape[:2]
+        return jsonify({"ok": True, "frame_size": [W, H], "detections": dets})
+
+    return bp
