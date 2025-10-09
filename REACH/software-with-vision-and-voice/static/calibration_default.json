@@ -46,7 +46,9 @@
     "twist_deg": 180,
     "rest_deg": 80,
     "dwell_ms": 1400,
-    "settle_ms": 250
+    "settle_ms": 250,
+    "hover_s1_target": 140,
+    "hover_s3_target": 120
   },
 
   "camera_clear": { "base": 90, "s1": 80, "s2": 180, "s3": 90, "s4": 80, "s5": 80 }
