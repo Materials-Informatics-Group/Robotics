@@ -2,7 +2,8 @@
 Besides the original FLUID, all other Robotics projects are contained in this repository
 - REACH
   - Customizable Robot Arm
-- Learning and Preparing to do Robotics
+    
+- LEARNING AND PREPARING TO DO ROBOTICS
   - Blender
     - 3D Modeling tool
       - https://www.youtube.com/watch?v=z-Xl9tGqH14
