@@ -16,3 +16,9 @@ Besides the original FLUID, all other Robotics projects are contained in this re
   - Our Robotics (Firmware and web-app templates)
     - Automation Mix
       - https://github.com/Materials-Informatics-Group/Automation-Mix
+  - Arduino Tutorials
+    - https://www.circuitbasics.com/home/arduino/
+      - Building parts can be found in the lab or can be ordered by asking the group leader
+  - Raspberry PI
+    - https://www.raspberrypi.com/tutorials/
+      
